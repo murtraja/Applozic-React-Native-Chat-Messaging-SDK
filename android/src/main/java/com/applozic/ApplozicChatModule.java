@@ -17,6 +17,7 @@ import com.applozic.mobicomkit.api.account.user.UserClientService;
 import com.applozic.mobicomkit.api.account.user.UserLoginTask;
 import com.applozic.mobicomkit.api.account.user.PushNotificationTask;
 import com.applozic.mobicomkit.api.conversation.database.MessageDatabaseService;
+import com.applozic.mobicomkit.api.notification.MobiComPushReceiver;
 import com.applozic.mobicomkit.api.people.ChannelInfo;
 import com.applozic.mobicomkit.channel.service.ChannelService;
 import com.applozic.mobicomkit.uiwidgets.async.AlGroupInformationAsyncTask;
@@ -32,6 +33,15 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
+
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
+
+import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.ReadableType;
+
 import com.applozic.mobicomkit.feed.AlResponse;
 import com.applozic.mobicomkit.uiwidgets.async.ApplozicChannelRemoveMemberTask;
 
@@ -55,6 +65,92 @@ public class ApplozicChatModule extends ReactContextBaseJavaModule implements Ac
     @Override
     public String getName() {
         return "ApplozicChat";
+    }
+
+    public Map<String, String> recursivelyDeconstructReadableMap(ReadableMap readableMap) {
+        ReadableMapKeySetIterator iterator = readableMap.keySetIterator();
+        Map<String, String> deconstructedMap = new HashMap<>();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            ReadableType type = readableMap.getType(key);
+            switch (type) {
+                case Null:
+                    deconstructedMap.put(key, null);
+                    break;
+                case Boolean:
+                    deconstructedMap.put(key, String.valueOf(readableMap.getBoolean(key)));
+                    break;
+                case Number:
+                    deconstructedMap.put(key, String.valueOf(readableMap.getDouble(key)));
+                    break;
+                case String:
+                    deconstructedMap.put(key, readableMap.getString(key));
+                    break;
+                case Map:
+                    deconstructedMap.put(key, StringifyReadableMap(readableMap.getMap(key)));
+                    break;
+                // case Array:
+                    // deconstructedMap.put(key, recursivelyDeconstructReadableArray(readableMap.getArray(key)));
+                    // break;
+                default:
+                    throw new IllegalArgumentException("Could not convert object with key: " + key + ".");
+            }
+  
+        }
+        return deconstructedMap;
+    }
+
+    public String StringifyReadableMap(ReadableMap readableMap) {
+        ReadableMapKeySetIterator iterator = readableMap.keySetIterator();
+        Map<String, String> deconstructedMap = new HashMap<>();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            ReadableType type = readableMap.getType(key);
+            switch (type) {
+                case Null:
+                    deconstructedMap.put(key, null);
+                    break;
+                case Boolean:
+                    deconstructedMap.put(key, String.valueOf(readableMap.getBoolean(key)));
+                    break;
+                case Number:
+                    deconstructedMap.put(key, String.valueOf(readableMap.getDouble(key)));
+                    break;
+                case String:
+                    deconstructedMap.put(key, readableMap.getString(key));
+                    break;
+                case Map:
+                    deconstructedMap.put(key, StringifyReadableMap(readableMap.getMap(key)));
+                    break;
+                // case Array:
+                    // deconstructedMap.put(key, recursivelyDeconstructReadableArray(readableMap.getArray(key)));
+                    // break;
+                default:
+                    throw new IllegalArgumentException("Could not convert object with key: " + key + ".");
+            }
+  
+        }
+        return String.valueOf(deconstructedMap);
+    }
+
+    @ReactMethod
+    public void processNotificationIfRequired(final ReadableMap data, final Callback callback) {
+        final Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            callback.invoke("Activity doesn't exist", null);
+            return;
+        }
+
+        Log.i(TAG, "Message data:" + data);
+        Map<String, String> mapData = recursivelyDeconstructReadableMap(data);
+        if (MobiComPushReceiver.isMobiComPushNotification(mapData)) {
+            Log.i(TAG, "Applozic notification processing...");
+            MobiComPushReceiver.processMessageAsync(currentActivity, mapData);
+            callback.invoke(null, true);
+            return;
+        }
+        Log.i(TAG, "Applozic not my notification");
+        callback.invoke(null, false);
     }
 
     @ReactMethod
