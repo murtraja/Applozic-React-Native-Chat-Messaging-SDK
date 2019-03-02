@@ -10,6 +10,7 @@ import com.applozic.mobicomkit.Applozic;
 import com.applozic.mobicomkit.ApplozicClient;
 import com.applozic.mobicomkit.uiwidgets.ApplozicSetting;
 import com.applozic.mobicomkit.api.account.register.RegistrationResponse;
+import com.applozic.mobicomkit.api.account.register.RegisterUserClientService;
 import com.applozic.mobicomkit.api.account.user.MobiComUserPreference;
 import com.applozic.mobicomkit.api.account.user.User;
 import com.applozic.mobicomkit.api.account.user.UserClientService;
@@ -44,6 +45,8 @@ import java.util.Set;
 
 public class ApplozicChatModule extends ReactContextBaseJavaModule implements ActivityEventListener {
 
+    final String TAG = "ApplozicChatModule";
+
     public ApplozicChatModule(ReactApplicationContext reactContext) {
         super(reactContext);
         reactContext.addActivityEventListener(this);
@@ -52,6 +55,29 @@ public class ApplozicChatModule extends ReactContextBaseJavaModule implements Ac
     @Override
     public String getName() {
         return "ApplozicChat";
+    }
+
+    @ReactMethod
+    public void updateToken(String token) {
+        Activity currentActivity = getCurrentActivity();
+
+        if (currentActivity == null) {
+            Log.i("open updateToken  ", "Activity doesn't exist");
+            return;
+        }
+
+        Log.i(TAG, "Found Registration Id:" + token);
+        if (MobiComUserPreference.getInstance(currentActivity).isRegistered()) {
+            Log.i(TAG, "user registered:");
+            try {
+                RegistrationResponse registrationResponse = new RegisterUserClientService(currentActivity).updatePushNotificationId(token);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            Log.i(TAG, "user not registered:");
+
+        }
     }
 
     @ReactMethod
